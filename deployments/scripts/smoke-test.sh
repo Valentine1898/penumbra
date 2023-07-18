@@ -28,20 +28,32 @@ TESTNET_RUNTIME="${TESTNET_RUNTIME:-120}"
 # Duration that the network will run before integration tests are run.
 TESTNET_BOOTTIME="${TESTNET_BOOTTIME:-20}"
 
+echo "Building pd from latest source..."
+cargo -q build --release --bin pd
 echo "Generating testnet config..."
 EPOCH_DURATION="${EPOCH_DURATION:-100}"
 cargo run --quiet --release --bin pd -- testnet generate --epoch-duration "$EPOCH_DURATION" --timeout-commit 500ms
-
-echo "Starting Tendermint..."
-tendermint start --log_level=error --home "${HOME}/.penumbra/testnet_data/node0/tendermint" &
-tendermint_pid="$!"
 
 echo "Starting pd..."
 cargo run --quiet --release --bin pd -- start --home "${HOME}/.penumbra/testnet_data/node0/pd" &
 pd_pid="$!"
 
-# Ensure processes are cleaned up after script exits, regardless of status.
 trap 'kill -9 "$tendermint_pid" "$pd_pid"' EXIT
+
+sleep 2
+echo "Starting CometMock (stand-in for Tendermint/CometBFT)..."
+# ❯ cometmock -h
+# Usage: <app-addresses> <genesis-file> <cometmock-listen-address> <node-homes> <abci-connection-mode>
+cometmock \
+    127.0.0.1:26658 \
+    "${HOME}/.penumbra/testnet_data/node0/tendermint/config/genesis.json" \
+    tcp://127.0.0.1:26657 \
+    "${HOME}/.penumbra/testnet_data/node0/tendermint" \
+    socket &
+cometmock_pid="$!"
+
+# Ensure processes are cleaned up after script exits, regardless of status.
+trap 'kill -9 "$cometmock_pid" "$pd_pid"' EXIT
 
 echo "Waiting $TESTNET_BOOTTIME seconds for network to boot..."
 sleep "$TESTNET_BOOTTIME"
@@ -61,7 +73,7 @@ sleep "$TESTNET_RUNTIME"
 # `kill -0` checks existence of pid, i.e. whether the process is still running.
 # It doesn't inspect errors, but the only reason the process would be stopped
 # is if it failed, so it's good enough for our needs.
-if ! kill -0 "$tendermint_pid" || ! kill -0 "$pd_pid" ; then
+if ! kill -0 "$cometmock_pid" || ! kill -0 "$pd_pid" ; then
     >&2 echo "ERROR: smoke test process exited early"
     exit 1
 else
