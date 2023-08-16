@@ -21,6 +21,13 @@ if [[ -d ~/.penumbra/testnet_data ]] ; then
     exit 1
 fi
 
+# Ensure we have cometmock available locally.
+if ! hash cometmock > /dev/null 2>&1 ; then
+    >&2 echo "ERROR: cometmock not found, please install from https://github.com/informalsystems/CometMock"
+    >&2 echo "Make sure to use the 'v0.34.x' branch for now."
+    exit 1
+fi
+
 export RUST_LOG="pclientd=info,pcli=info,pd=info,penumbra=info"
 
 # Duration that the network will be left running before script exits.

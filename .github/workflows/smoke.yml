@@ -33,18 +33,24 @@ jobs:
           export PATH=$HOME/bin:$PATH
           which tendermint
 
-      # The point of these was to do compilation upfront, doesn't seem to be effective
-      #- name: Build `pd`
-      #  uses: actions-rs/cargo@v1
-      #  with:
-      #    command: build
-      #    args: --release --package pd
-      #- name: Build `pcli` tests
-      #  uses: actions-rs/cargo@v1
-      #  with:
-      #    command: test
-      #    args: --release --features sct-divergence-check --package pcli --no-run
-        
+      # Build CometMock from source, specifically from the v0.34.x branch.
+      - name: Install golang
+        uses: actions/setup-go@v4
+        with:
+          go-version: 'stable'
+
+      - name: Build cometmock
+        run: |
+          # cometmock_branch="v0.34.x"
+          # Temporarily use feature branch for Penumbra/tower-abci support.
+          cometmock_branch="ph/increase-timeout"
+          git clone --depth 1 --branch "$cometmock_branch"  https://github.com/informalsystems/CometMock ../cometmock
+          cd ../cometmock || exit 1
+          mkdir -p $HOME/bin
+          go build -o $HOME/bin/cometmock ./cometmock
+          export PATH=$HOME/bin:$PATH
+          which cometmock
+
       - name: Run the smoke test suite
         run: |
           export PATH=$HOME/bin:$PATH
