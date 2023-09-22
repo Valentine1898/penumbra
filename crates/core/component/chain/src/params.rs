@@ -10,6 +10,7 @@ use penumbra_num::Amount;
 use penumbra_proto::client::v1alpha1 as pb_client;
 use penumbra_proto::core::chain::v1alpha1 as pb_chain;
 
+use penumbra_gas::GasPrices;
 use penumbra_proto::view::v1alpha1 as pb_view;
 use penumbra_proto::{DomainType, TypeUrl};
 use serde::{Deserialize, Serialize};
@@ -60,6 +61,9 @@ pub struct ChainParameters {
 
     /// Whether DAO spend proposals are enabled.
     pub dao_spend_proposals_enabled: bool,
+
+    /// Defines fee price coefficients for various chain resources.
+    pub gas_prices: GasPrices,
 }
 
 impl TypeUrl for ChainParameters {
@@ -105,6 +109,10 @@ impl TryFrom<pb_chain::ChainParameters> for ChainParameters {
                 .parse()
                 .context("couldn't parse proposal_slash_threshold")?,
             dao_spend_proposals_enabled: msg.dao_spend_proposals_enabled,
+            gas_prices: msg
+                .gas_prices
+                .ok_or_else(|| anyhow::anyhow!("missing gas_prices"))?
+                .try_into()?,
         })
     }
 }
@@ -152,6 +160,7 @@ impl From<ChainParameters> for pb_chain::ChainParameters {
             proposal_pass_threshold: params.proposal_pass_threshold.to_string(),
             proposal_slash_threshold: params.proposal_slash_threshold.to_string(),
             dao_spend_proposals_enabled: params.dao_spend_proposals_enabled,
+            gas_prices: params.gas_prices,
         }
     }
 }
@@ -186,6 +195,7 @@ impl Default for ChainParameters {
             // slash threshold means if (no / no + yes + abstain) > slash_threshold, then proposal is slashed
             proposal_slash_threshold: Ratio::new(80, 100),
             dao_spend_proposals_enabled: true,
+            gas_prices: GasPrices {},
         }
     }
 }
