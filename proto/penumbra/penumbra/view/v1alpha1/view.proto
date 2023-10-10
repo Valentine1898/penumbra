@@ -499,7 +499,7 @@ message SpendableNoteRecord {
   // The height at which the note was created.
   uint64 height_created = 5;
   // Records whether the note was spent (and if so, at what height).
-  uint64 height_spent = 6;
+  optional uint64 height_spent = 6;
   // The note position.
   uint64 position = 7;
   // The source of the note (a tx hash or otherwise)
